@@ -1,0 +1,82 @@
+-- [1] ดูข้อมูลภาพรวม
+SELECT * 
+FROM dbo.[Resorts in Thailand];
+
+-- [2] ตรวจสอบค่าที่หายไป (NULL) ในแต่ละคอลัมน์
+SELECT 
+    COUNT(*) AS total_rows,
+    COUNT(CASE WHEN Name_of_Resort IS NULL THEN 1 END) AS null_Name_of_Resort,
+    COUNT(CASE WHEN place IS NULL THEN 1 END) AS null_place,
+    COUNT(CASE WHEN room IS NULL THEN 1 END) AS null_room,
+    COUNT(CASE WHEN bed IS NULL THEN 1 END) AS null_bed,
+    COUNT(CASE WHEN condition IS NULL THEN 1 END) AS null_condition,
+    COUNT(CASE WHEN price IS NULL THEN 1 END) AS null_price,
+    COUNT(CASE WHEN travel_sustainable_level IS NULL THEN 1 END) AS null_travel_sustainable_level,
+    COUNT(CASE WHEN rating IS NULL THEN 1 END) AS null_rating,
+    COUNT(CASE WHEN total_reviews IS NULL THEN 1 END) AS null_total_reviews
+FROM dbo.[Resorts in Thailand];
+
+-- [3] ทำความสะอาดข้อมูล (Cleaned Columns)
+SELECT 
+    Name_of_Resort,
+    place,
+    ISNULL(CAST(bed AS VARCHAR(55)), '') AS bed,
+    ISNULL(CAST(condition AS VARCHAR(55)), '') AS condition,
+    ROUND(ISNULL(CAST(price AS FLOAT), 0), 3) AS price,
+    ISNULL(CAST(travel_sustainable_level AS VARCHAR(55)), '') AS travel_sustainable_level,
+    ROUND(ISNULL(CAST(rating AS FLOAT), 0), 3) AS rating,
+    ISNULL(
+        CAST(
+            REPLACE(
+                REPLACE(
+                    REPLACE(total_reviews, ' reviews', ''), 
+                ' review', ''),   
+            ',','') AS INT
+        ), 0
+    ) AS total_reviews_cleaned
+FROM dbo.[Resorts in Thailand]
+ORDER BY total_reviews_cleaned DESC;
+
+-- [4] สร้าง View สำหรับข้อมูลรีสอร์ทที่ผ่านการทำความสะอาด
+CREATE VIEW View_Cleaned_Resort_Data AS
+SELECT 
+    Name_of_Resort,
+    place,
+    ISNULL(CAST(bed AS VARCHAR(55)), '') AS bed,
+    ISNULL(CAST(condition AS VARCHAR(55)), '') AS condition,
+    ROUND(ISNULL(CAST(price AS FLOAT), 0), 3) AS price,
+    ISNULL(CAST(travel_sustainable_level AS VARCHAR(55)), '') AS travel_sustainable_level,
+    ROUND(ISNULL(CAST(rating AS FLOAT), 0), 3) AS rating,
+    ISNULL(
+        CAST(
+            REPLACE(
+                REPLACE(
+                    REPLACE(total_reviews, ' reviews', ''), 
+                ' review', ''),   
+            ',','') AS INT
+        ), 0
+    ) AS total_reviews_cleaned
+FROM dbo.[Resorts in Thailand];
+
+-- [5] ตรวจสอบจำนวนรีสอร์ทแต่ละจังหวัด (หลัง JOIN กับตารางจังหวัด)
+SELECT 
+    P.Province, 
+    COUNT(*) AS Resort_Count
+FROM View_Cleaned_Resort_Data V
+LEFT JOIN dbo.Place_Province_Thailand_Cleaned P ON V.place = P.place
+WHERE P.Province IS NOT NULL AND P.Province <> 'Unknown'
+GROUP BY P.Province;
+
+-- [6] สร้าง View ใหม่ที่รวมจังหวัดเข้ากับข้อมูลรีสอร์ท
+CREATE VIEW Merge_2_Resort_Data AS
+SELECT 
+    V.*, 
+    P.Province
+FROM View_Cleaned_Resort_Data V
+LEFT JOIN dbo.Place_Province_Thailand_Cleaned P ON V.place = P.place
+WHERE P.Province IS NOT NULL AND P.Province <> 'Unknown';
+
+-- [7] ตรวจสอบข้อมูลจาก View ที่รวมแล้ว
+SELECT * 
+FROM Merge_2_Resort_Data;
+
